@@ -1,0 +1,356 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1RLfBIRrGKbLQPXm_dEnbEinAcKTxXIXyLrwamfR63BU",
+          "mode": "list",
+          "cachedResultName": "Job Application (Responses)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RLfBIRrGKbLQPXm_dEnbEinAcKTxXIXyLrwamfR63BU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RLfBIRrGKbLQPXm_dEnbEinAcKTxXIXyLrwamfR63BU/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -208
+      ],
+      "id": "2db94cbc-71fe-46ec-8c5c-2464364c3c19",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "ikoKrt1drUjtxgxP",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://www.googleapis.com/drive/v3/files/' + $json['Upload your CV'].split('/d/')[1].split('/')[0] + '?alt=media' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4a874a56-ce85-44bc-9d9c-7c64c9e45b32",
+      "name": "HTTP Request",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gHOP20N5ATs7vkA4",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const binaryData = $input.first().binary?.data;\n\nif (!binaryData) {\n  throw new Error('No CV file found');\n}\n\nconst base64 = binaryData.data;\nconst mimeType = binaryData.mimeType || 'application/pdf';\nconst formData = $input.first().json;\n\nreturn [{\n  json: {\n    cv_base64: base64,\n    cv_mime_type: mimeType,\n    applicant_name: formData['Full Name'],\n    applicant_email: formData['Email Address'],\n    role: formData['Role Applying For'],\n    experience_years: formData['Years of Experience'],\n    submitted_at: formData['Timestamp'],\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -192
+      ],
+      "id": "068945f5-f0a9-4f26-9690-d5283f22bcb2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer GROK_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a senior recruiter screening CVs for a {{ $json.role }} role. Candidate has {{ $json.experience_years }} years of experience. Here is their CV in base64: {{ $json.cv_base64 }} Respond ONLY with valid JSON, no markdown, no explanation. Keys: score (int 1-10), strengths (string 2-3 sentences), gaps (string 2-3 sentences), recommendation (exactly: Strong Yes, Yes, or No).\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        16
+      ],
+      "id": "61b1ed4a-a1fe-4119-88ad-c94273403d13",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const groqResponse = $input.first().json;\nconst rawText = groqResponse.choices[0].message.content;\n\n// Clean accidental markdown fences\nconst cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet screening;\ntry {\n  screening = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Groq returned invalid JSON: ' + rawText);\n}\n\nconst prev = $('Code in JavaScript').first().json;\n\nreturn [{\n  json: {\n    ...prev,\n    ai_score: screening.score,\n    ai_strengths: screening.strengths,\n    ai_gaps: screening.gaps,\n    ai_recommendation: screening.recommendation,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        -176
+      ],
+      "id": "e76db617-5177-4be4-80d0-2df6369b4846",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_NOTION_API_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent\": { \"database_id\": \"370cc14ba841806f99d0fec8a16e862a\" },\n  \"properties\": {\n    \"Name\": { \"title\": [{ \"text\": { \"content\": \"={{ $json.applicant_name }}\" } }] },\n    \"Email\": { \"email\": \"={{ $json.applicant_email }}\" },\n    \"Role\": { \"select\": { \"name\": \"={{ $json.role }}\" } },\n    \"AI Score\": { \"number\": {{ $json.ai_score }} },\n    \"Strengths\": { \"rich_text\": [{ \"text\": { \"content\": \"={{ $json.ai_strengths }}\" } }] },\n    \"Gaps\": { \"rich_text\": [{ \"text\": { \"content\": \"={{ $json.ai_gaps }}\" } }] },\n    \"Recommendation\": { \"select\": { \"name\": \"={{ $json.ai_recommendation }}\" } },\n    \"Applied At\": { \"date\": { \"start\": \"2026-05-26\" } },\n    \"Status\": { \"select\": { \"name\": \"To Review\" } }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        16
+      ],
+      "id": "ecd3fffc-8f95-4222-a068-176d884987c2",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2fb28599-f670-4607-879d-357c48d653d1",
+              "leftValue": "={{ $json.ai_score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        -192
+      ],
+      "id": "6a49d238-8eae-4faf-b11d-cb19afb8f5fa",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.notion_page_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_NOTION_API_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Status\": { \"select\": { \"name\": \"Rejected\" } }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        944,
+        32
+      ],
+      "id": "841a7143-5479-467f-8f42-d15d544e947a",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "sendTo": "=={{ $json.applicant_email }}",
+        "subject": "=Strong Candidate Alert - {{ $json.applicant_name }} scored {{ $json.ai_score }}/10",
+        "emailType": "text",
+        "message": "=Strong candidate alert!  Name: {{ $json.applicant_name }} Role: {{ $json.role }} Score: {{ $json.ai_score }}/10 Recommendation: {{ $json.ai_recommendation }}  Strengths: {{ $json.ai_strengths }}  Gaps: {{ $json.ai_gaps }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        -208
+      ],
+      "id": "5f05396a-d159-43af-b182-2881f566d9c9",
+      "name": "Send a message",
+      "webhookId": "b7e3e9a1-5660-4e08-8759-53fff562d6ec",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "notesInFlow": false,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "kkeDXXN3uwClDVnF",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "eff937fa-1b19-49db-8751-68d6e6ba6a83",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ea5a5e584896341294842bb32e60ae201697dfafb8d960dbcdc78b4afd8fa54e"
+  },
+  "id": "avrKK3a9HIsNxFsh",
+  "tags": []
+}

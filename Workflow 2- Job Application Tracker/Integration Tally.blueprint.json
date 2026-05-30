@@ -1,0 +1,244 @@
+{
+    "name": "Integration Tally",
+    "flow": [
+        {
+            "id": 1,
+            "module": "tally:watchNewResponse",
+            "version": 1,
+            "parameters": {
+                "__IMTHOOK__": 3136666
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "__IMTHOOK__": {
+                            "label": "Job Application Tracker-Response webhook",
+                            "data": {
+                                "editable": "false"
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTHOOK__",
+                        "type": "hook:tally",
+                        "label": "Webhook",
+                        "required": true
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "eventId",
+                        "type": "text",
+                        "label": "Event ID"
+                    },
+                    {
+                        "name": "responseId",
+                        "type": "text",
+                        "label": "Response ID"
+                    },
+                    {
+                        "name": "submissionId",
+                        "type": "text",
+                        "label": "Submission ID"
+                    },
+                    {
+                        "name": "respondentId",
+                        "type": "text",
+                        "label": "Respondent ID"
+                    },
+                    {
+                        "name": "formId",
+                        "type": "text",
+                        "label": "Form ID"
+                    },
+                    {
+                        "name": "formName",
+                        "type": "text",
+                        "label": "Form Name"
+                    },
+                    {
+                        "name": "createdAt",
+                        "type": "date",
+                        "label": "Created at"
+                    },
+                    {
+                        "name": "fields",
+                        "spec": [
+                            {
+                                "name": "Company Name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Job Role",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Job Link",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Date Applied",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Status",
+                                "type": "array",
+                                "spec": {
+                                    "type": "text"
+                                }
+                            },
+                            {
+                                "name": "Follow-Up date",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Notes",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Fields"
+                    },
+                    {
+                        "name": "fieldsById",
+                        "spec": [
+                            {
+                                "name": "question_8ebo2Y",
+                                "label": "Company Name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "question_0PqrG0",
+                                "label": "Job Role",
+                                "type": "text"
+                            },
+                            {
+                                "name": "question_ze8Xg8",
+                                "label": "Job Link",
+                                "type": "text"
+                            },
+                            {
+                                "name": "question_52aKrP",
+                                "label": "Date Applied",
+                                "type": "text"
+                            },
+                            {
+                                "name": "question_dPJqgy",
+                                "label": "Status",
+                                "type": "array",
+                                "spec": {
+                                    "type": "text"
+                                }
+                            },
+                            {
+                                "name": "question_Yd7De6",
+                                "label": "Follow-Up date",
+                                "type": "text"
+                            },
+                            {
+                                "name": "question_DeR2bj",
+                                "label": "Notes",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Fields by ID"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 4,
+            "module": "mysql:Query",
+            "version": 2,
+            "parameters": {
+                "account": 7827564,
+                "continueWhenNoRes": false,
+                "isToManageDataInSharedTransaction": true,
+                "showWarnings": false
+            },
+            "mapper": {
+                "command": "INSERT INTO job_applications (\r\n  company_name, job_role, job_link, \r\n  date_applied, status, follow_up_date, notes\r\n)\r\nVALUES (\r\n  '{{1.fields.`Company Name`}}',\r\n  '{{1.fields.`Job Role`}}',\r\n  '{{1.fields.`Job Link`}}',\r\n  '{{1.fields.`Date Applied`}}',\r\n  '{{1.fields.Status}}',\r\n  '{{1.fieldsById.question_Yd7De6}}',\r\n  '{{1.fields.Notes}}'\r\n);"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "account": {
+                            "label": "My MySQL connection (YOUR_RAILWAY_SQL_CONNECTION_HERE)",
+                            "data": {
+                                "scoped": "true",
+                                "connection": "mysql"
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "account",
+                        "type": "account:mysql",
+                        "label": "Connection",
+                        "required": true
+                    },
+                    {
+                        "name": "continueWhenNoRes",
+                        "type": "boolean",
+                        "label": "Continue the execution of the route even if the module returns no rows",
+                        "required": true
+                    },
+                    {
+                        "name": "isToManageDataInSharedTransaction",
+                        "type": "boolean",
+                        "label": "Manage data within the shared transaction",
+                        "required": true
+                    },
+                    {
+                        "name": "showWarnings",
+                        "type": "boolean",
+                        "label": "Show warnings from the database",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "command",
+                        "type": "text",
+                        "label": "Query",
+                        "required": true
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu1.make.com",
+        "notes": []
+    }
+}
